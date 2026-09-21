@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mythologic Quiz Arena</title>
+    
+    <!-- Cinematic Mythological Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- MathJax for LaTeX Rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Cropper.js for Avatar Cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <style>
+        :root {
+            --gold: #d4af37;
+            --dark-gold: #aa8c2c;
+            --bg-deep-red: #1a0505;
+            --panel-bg: rgba(10, 2, 2, 0.95);
+        }
+
+        /* HIDE SCROLLBARS GLOBALLY */
+        ::-webkit-scrollbar { width: 0px; background: transparent; display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+
+        body {
+            margin: 0; padding: 0;
+            background: radial-gradient(circle at center, #3a0a0a 0%, #000000 100%);
+            color: var(--gold);
+            font-family: 'Cinzel', serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3 { 
+            font-family: 'Cinzel Decorative', serif; 
+            text-align: center; margin: 10px 0; 
+            background: linear-gradient(to bottom, #fcf6ba, #bf953f, #aa771c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.3);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #220808, #5a1c1c);
+            border: 1px solid var(--gold); color: var(--gold); 
+            font-family: 'Cinzel Decorative', serif; font-weight: 900;
+            padding: 12px 20px; cursor: pointer; border-radius: 3px; 
+            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        button:hover { 
+            background: linear-gradient(45deg, var(--dark-gold), var(--gold));
+            color: black; transform: scale(1.05); box-shadow: 0 0 25px var(--gold); 
+        }
+        
+        input, textarea, select {
+            background: rgba(0, 0, 0, 0.8); border: 1px solid var(--gold); color: white;
+            padding: 12px; font-family: 'Cinzel', serif; width: 100%; box-sizing: border-box; 
+            margin-bottom: 10px; font-size: 1rem;
+        }
+
+        .screen { display: none; padding: 20px; }
+        .active-screen { display: block; }
+
+        .back-btn {
+            position: absolute; top: 15px; left: 15px; font-size: 0.8rem; z-index: 50;
+            background: rgba(0,0,0,0.5); padding: 8px 15px;
+        }
+        
+        /* Secret Admin Trigger - Visible only on selection screen */
+        .secret-admin-btn {
+            position: fixed; bottom: 20px; left: 20px; font-size: 2rem; color: rgba(255,255,255,0.1);
+            cursor: pointer; user-select: none; z-index: 100; transition: color 0.3s;
+            display: block; 
+        }
+        .secret-admin-btn:hover { color: var(--gold); }
+
+        #selection-screen { text-align: center; margin-top: 20vh; }
+        .mode-btn { font-size: 1.2rem; padding: 20px; width: 350px; margin: 20px auto; display: block; }
+
+        #admin-panel, #edit-avatars-screen { max-width: 900px; margin: 50px auto; background: var(--panel-bg); padding: 30px; border: 1px solid var(--gold); border-radius: 5px; box-shadow: 0 0 50px rgba(0,0,0,0.8); position: relative; }
+        .admin-section { border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 20px; margin-bottom: 20px; }
+        .q-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.7); padding: 15px; border: 1px solid #4a1515; margin-bottom: 5px; }
+        .admin-avatars { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+
+        .gear-icon {
+            position: absolute; top: 20px; right: 20px; font-size: 1.8rem; cursor: pointer; color: var(--gold); transition: transform 0.3s ease;
+        }
+        .gear-icon:hover { transform: rotate(90deg); text-shadow: 0 0 15px var(--gold); }
+        
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--panel-bg); border: 2px solid var(--gold); padding: 40px; border-radius: 5px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+        }
+
+        /* --- PROJECTOR DISPLAY BOARD --- */
+        #main-display { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            overflow: hidden; padding: 0; background: radial-gradient(circle at center, #3a0a0a 0%, #000000 100%);
+        }
+        #main-display-container {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 100vh; width: 100vw; padding: 20px; box-sizing: border-box;
+        }
+        .cinematic-board {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 40px; background: rgba(0,0,0,0.85); 
+            border: 2px solid var(--gold); width: 95%; max-width: 1600px; height: 90%; 
+            box-shadow: 0 0 60px rgba(212, 175, 55, 0.2), inset 0 0 40px rgba(0,0,0,0.9);
+            border-radius: 10px; position: relative;
+        }
+        .cinematic-board::before {
+            content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+            border: 1px solid rgba(212, 175, 55, 0.3); pointer-events: none;
+        }
+        
+        #display-question { 
+            width: 100%; flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+            margin-bottom: 20px; color: #fff; font-weight: 700; text-shadow: 0 5px 15px rgba(0,0,0,0.9);
+            word-wrap: break-word; overflow: hidden; text-align: justify; text-justify: inter-word;
+        }
+        
+        #display-question mjx-container {
+            text-align: left !important;
+            display: inline-block !important;
+            margin: 0 4px !important;
+        }
+        #display-question mjx-container[jax="SVG"] {
+            display: inline !important;
+        }
+        
+        #display-timer { 
+            flex-shrink: 0; font-size: clamp(4rem, 8vw, 7rem); color: #ff3333; font-weight: 900; 
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.6); font-family: 'Cinzel Decorative', serif;
+            min-height: 120px; text-align: center;
+        }
+        
+        .time-expired-text {
+            font-size: clamp(1.5rem, 4vw, 3rem); 
+            color: #ff3333; display: flex; align-items: center; justify-content: center; height: 100%;
+        }
+
+        #display-answer { 
+            flex-shrink: 0; font-size: clamp(2rem, 4vw, 3.5rem); color: #00ffcc; margin-top: 10px; display: none; 
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5); font-family: 'Cinzel Decorative', serif; text-align: center;
+        }
+
+        /* FULLSCREEN SCOREBOARD OVERLAY (NO SCROLL FIT) */
+        #scoreboard-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 1, 1, 0.96); z-index: 50; display: none;
+            flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+            overflow: hidden;
+        }
+        .scoreboard-grid {
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px; 
+            width: 100%; max-width: 1450px; max-height: 75vh; overflow: hidden; padding: 5px;
+        }
+        .scoreboard-card {
+            background: #150606; border: 1.5px solid var(--gold); border-radius: 6px;
+            width: 125px; text-align: center; padding: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        }
+        .scoreboard-card img {
+            width: 100%; height: 95px; object-fit: cover; border-bottom: 1.5px solid var(--dark-gold); border-radius: 3px;
+        }
+        .scoreboard-card .name { font-size: 0.75rem; margin-top: 4px; font-weight: bold; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scoreboard-card .score { font-size: 1.3rem; font-weight: 900; color: #fff; margin-top: 1px; }
+
+        /* AVATAR GRID & ANIMATIONS */
+        .avatar-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; padding: 20px; }
+        .avatar-card { 
+            background: #110505; border: 2px solid var(--gold); border-radius: 5px;
+            width: 130px; text-align: center; position: relative; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8); overflow: hidden; padding-bottom: 10px;
+        }
+        
+        @keyframes live-breathing {
+            0% { transform: scale(1) translateY(0); filter: brightness(1) contrast(1); }
+            50% { transform: scale(1.03) translateY(-3px); filter: brightness(1.1) contrast(1.05); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1) contrast(1); }
+        }
+
+        .avatar-img {
+            width: 100%; height: 160px; object-fit: cover; border-bottom: 2px solid var(--dark-gold);
+            background: #000; animation: live-breathing 4s infinite ease-in-out;
+        }
+        
+        .avatar-name { font-size: 1rem; margin-top: 8px; font-weight: bold; color: var(--gold); }
+        .avatar-score { font-size: 1.5rem; font-weight: 900; color: #fff; }
+
+        .locked-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: var(--gold); z-index: 10;
+        }
+        .locked .locked-overlay { display: flex; }
+        .locked .avatar-img { filter: grayscale(100%) opacity(0.3); animation: none; }
+        .locked { pointer-events: none; border-color: #333; }
+        .lock-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .lock-text { font-size: 0.8rem; font-weight: bold; letter-spacing: 2px; }
+
+        @keyframes ability {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.15) translateY(-10px); filter: brightness(1.5); box-shadow: 0 0 40px cyan, inset 0 0 20px cyan; border-color: cyan; }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .animate-ability { animation: ability 1.5s forwards !important; }
+        .animate-ability .avatar-img { animation: none; }
+        .animate-ability .avatar-score { color: cyan; transform: scale(1.8); transition: 0.5s; text-shadow: 0 0 20px cyan; }
+
+        #mobile-screen { text-align: center; max-width: 500px; margin: 40px auto; position: relative;}
+        .mobile-hero-img { 
+            width: 220px; height: 300px; margin: 20px auto; border-radius: 5px; 
+            border: 3px solid var(--gold); display: block; object-fit: cover;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.2); animation: live-breathing 4s infinite ease-in-out;
+        }
+        #mobile-q-text { font-size: 1.1rem; line-height: 1.4; text-align: justify; }
+
+        /* --- DRAG, DROP, PASTE, & CROP --- */
+        .drop-zone {
+            border: 2px dashed var(--gold); padding: 25px; text-align: center; 
+            cursor: pointer; color: #aaa; margin-bottom: 15px; font-size: 0.9rem;
+            transition: all 0.3s ease; border-radius: 5px; background: rgba(0,0,0,0.5);
+        }
+        .drop-zone.dragover { background: rgba(212, 175, 55, 0.2); border-color: #fff; color: #fff; }
+        .img-container { max-height: 300px; overflow: hidden; margin-bottom: 15px; border: 1px solid var(--gold); display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Secret Admin Trigger (Only visible on selection screen) -->
+    <div id="secret-admin-trigger" class="secret-admin-btn" onclick="showAdminLogin()">&#8942;</div>
+
+    <!-- 1. Selection Screen -->
+    <div id="selection-screen" class="screen active-screen">
+        <h1 style="font-size: clamp(3rem, 6vw, 4.5rem); margin-bottom: 0;">MYTHOLOGIC</h1>
+        <h2 style="font-size: clamp(1.8rem, 4vw, 2.5rem); margin-top: 0; color: #fff; -webkit-text-fill-color: #fff; text-shadow: 0 0 10px #fff;">QUIZ ARENA</h2>
+        <p style="color: #aaa; margin-bottom: 50px; letter-spacing: 4px;">AWAIT THE GODS</p>
+        <button class="mode-btn" onclick="initDisplay()">Launch Main Display</button>
+        <button class="mode-btn" onclick="initMobile()">Player Device (Mobile)</button>
+    </div>
+
+    <!-- Admin Login Screen -->
+    <div id="admin-login-screen" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div class="cinematic-board" style="max-width: 450px; height: auto; margin: 15vh auto; padding: 40px; border-radius: 10px;">
+            <h2>ADMIN ACCESS</h2>
+            <input type="text" id="login-user" placeholder="Admin Name">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button onclick="attemptLogin()" style="width: 100%; margin-top: 15px;">ENTER REALM</button>
+        </div>
+    </div>
+
+    <!-- 2. Admin Panel -->
+    <div id="admin-panel" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div class="gear-icon" onclick="openSettings()" title="Settings">&#9881;</div>
+        
+        <h1 style="margin-top: 30px;">Admin Control</h1>
+        
+        <div class="admin-section">
+            <h2 id="form-title">Forge Challenge</h2>
+            <input type="hidden" id="edit-index" value="-1">
+            <textarea id="q-text" rows="3" placeholder="Question text... You can use LaTeX! e.g., $E=mc^2$ or $$\frac{1}{2}$$"></textarea>
+            <input type="text" id="q-ans" placeholder="Answer (Secret until revealed)">
+            <input type="number" id="q-time" placeholder="Time limit (seconds)">
+            <button onclick="saveQuestion()" style="width: 100%;" id="btn-save">SAVE CHALLENGE</button>
+            <div id="q-list" style="margin-top: 15px; max-height: 200px; overflow-y: scroll;"></div>
+        </div>
+
+        <div class="admin-section">
+            <h2>Active Game Control</h2>
+            <select id="q-select"></select>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="startQuestion()" style="flex: 1; border-color: #00ff00;">START TIMER</button>
+                <button onclick="revealAnswer()" style="flex: 1; border-color: #00ccff;">REVEAL ANSWER</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="setScoreboardState(true)" style="flex: 1; border-color: var(--gold); background: linear-gradient(45deg, #442200, #885500); color: #fff;">DISPLAY ALL SCORES</button>
+                <button onclick="setScoreboardState(false)" style="flex: 1; border-color: #ff3333; background: linear-gradient(45deg, #440000, #880000); color: #fff;">STOP DISPLAYING SCORES</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h2>Divine Favor (Scores)</h2>
+            <div class="admin-avatars" id="admin-avatar-list"></div>
+        </div>
+        <button onclick="resetAll()" style="border-color: #ff0000; color: #ffaa00; width: 100%;">Hard Reset Realm</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="settings-title">Admin Settings</h2>
+            
+            <button onclick="openAvatarEditorPage()" style="width: 100%; margin-bottom: 20px; background: #0055aa; border-color: #00ffcc; color: white;">EDIT AVATARS</button>
+            
+            <input type="text" id="new-admin-user" placeholder="Admin Name">
+            <div id="current-pass-container">
+                <input type="password" id="old-admin-pass" placeholder="Current Password (Required)">
+            </div>
+            <input type="password" id="new-admin-pass" placeholder="New Password">
+            
+            <button onclick="saveSettings()" style="width: 100%; margin-bottom: 10px; margin-top: 10px;">SAVE CREDENTIALS</button>
+            <button id="btn-delete-pass" onclick="deletePassword()" style="width: 100%; margin-bottom: 10px; background: #800000; border-color: #ff0000; color: white;">DELETE PASSWORD</button>
+            <button onclick="closeSettings()" style="width: 100%; background: transparent; border-color: #555;">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- Edit Avatars Page -->
+    <div id="edit-avatars-screen" class="screen">
+        <button class="back-btn" onclick="returnToAdminPanel()">&#8592; RETURN</button>
+        <h1 style="margin-top: 30px;">Forge Avatars</h1>
+        <button onclick="openAvatarModal(null)" style="display:block; margin: 0 auto 20px auto; border-color: #00ff00;">+ CREATE NEW AVATAR</button>
+        <div class="avatar-grid" id="edit-avatar-grid-list"></div>
+    </div>
+
+    <!-- Avatar Editor Modal -->
+    <div id="avatar-editor-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="avatar-modal-title">Modify Avatar</h2>
+            <input type="hidden" id="edit-avatar-index">
+            <input type="text" id="edit-avatar-name" placeholder="Character Name">
+            
+            <div id="drop-zone" class="drop-zone" onclick="document.getElementById('edit-avatar-file').click()">
+                Click to Browse, Drag & Drop, or Paste (Ctrl+V) Image Here
+                <input type="file" id="edit-avatar-file" accept="image/*" onchange="handleFileInput(event)" style="display:none;">
+            </div>
+            
+            <div class="img-container" id="crop-container">
+                <img id="image-to-crop" src="" style="max-width: 100%;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="saveAvatarEdits()" style="flex: 2; border-color: #00ff00;">SAVE AVATAR</button>
+                <button id="btn-delete-avatar" onclick="deleteAvatar()" style="flex: 1; background: #800000; border-color: red; color: white;" title="Delete Character">DELETE</button>
+            </div>
+            <button onclick="closeAvatarEditor()" style="width: 100%; background: transparent; border-color: #555;">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- 3. Main Display Screen -->
+    <div id="main-display" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div id="main-display-container">
+            <div class="cinematic-board">
+                <!-- Scoreboard Overlay inside Display -->
+                <div id="scoreboard-overlay">
+                    <h2>PANTEON SCOREBOARD</h2>
+                    <div class="scoreboard-grid" id="projector-scoreboard-grid"></div>
+                </div>
+
+                <div id="display-question">THE ARENA AWAITS...</div>
+                <div id="display-timer">--</div>
+                <div id="display-answer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Mobile Screen -->
+    <div id="mobile-screen" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        
+        <div id="mobile-setup">
+            <h2 style="margin-top: 30px; font-size: 2.5rem;">Select Destiny</h2>
+            <div class="avatar-grid" id="mobile-selection-grid"></div>
+        </div>
+
+        <div id="mobile-play" style="display: none;">
+            <h2 id="mobile-name" style="font-size: 2.5rem; margin-top: 30px;"></h2>
+            <div id="mobile-container">
+                <img id="mobile-img" src="" class="mobile-hero-img">
+                <h1 id="mobile-score" style="font-size: 5rem; margin: 10px 0; -webkit-text-fill-color: #fff;">0</h1>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.85); border: 1px solid var(--gold); padding: 20px; margin-top: 20px; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #aaa; -webkit-text-fill-color: #aaa;">CURRENT CHALLENGE</h3>
+                <p id="mobile-q-text">Waiting for the Gods...</p>
+                <div id="mobile-timer" style="color: #ff3333; font-size: 2.5rem; font-weight: bold; font-family: 'Cinzel Decorative', serif;"></div>
+                <div id="mobile-answer" style="color: #00ffcc; font-size: 1.8rem; display: none; margin-top: 15px; font-family: 'Cinzel Decorative', serif;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Questions from External questions.js File -->
+    <script src="questions.js"></script>
+
+    <script>
+        // --- INITIALIZATION & DEFAULT DATA ---
+        if(!localStorage.getItem('myth_admin_user')) { localStorage.setItem('myth_admin_user', 'ADMIN'); }
+        if(localStorage.getItem('myth_admin_pass') === null) { localStorage.setItem('myth_admin_pass', 'password'); }
+
+        const defaultNames = [
+            "Zeus", "Hera", "Poseidon", "Hades", "Athena", "Ares", "Apollo", "Artemis", 
+            "Aphrodite", "Hermes", "Hephaestus", "Demeter", "Dionysus", "Hestia", 
+            "Persephone", "Helios", "Selene", "Nike", "Thanatos", "Hypnos"
+        ];
+        
+        let characterData = JSON.parse(localStorage.getItem('myth_characters'));
+        if (!characterData) {
+            const aiPrompt = "Epic portrait of Greek god, dark fantasy, cinematic lighting, gold and dark red aesthetic";
+            characterData = defaultNames.map(name => ({
+                name: name,
+                img: `https://image.pollinations.ai/prompt/${name}%20Greek%20God%20${aiPrompt}?width=300&height=400&nologo=true`
+            }));
+            localStorage.setItem('myth_characters', JSON.stringify(characterData));
+        }
+
+        let scores = JSON.parse(localStorage.getItem('myth_s')) || Array(characterData.length).fill(0);
+        let claimed = JSON.parse(localStorage.getItem('myth_claimed')) || {};
+        let timerInterval = null;
+        let myMobileIndex = null;
+        let cropper = null;
+
+        // --- ENTER KEY NAVIGATION & SHORTCUT LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginUser = document.getElementById('login-user');
+            const loginPass = document.getElementById('login-pass');
+            if(loginUser) loginUser.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); loginPass.focus(); } });
+            if(loginPass) loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); attemptLogin(); } });
+
+            const avatarModal = document.getElementById('avatar-editor-modal');
+            if(avatarModal) {
+                avatarModal.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { 
+                        e.preventDefault(); saveAvatarEdits(); 
+                    }
+                });
+            }
+        });
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active-screen');
+            
+            const adminTrigger = document.getElementById('secret-admin-trigger');
+            if (adminTrigger) {
+                adminTrigger.style.display = (id === 'selection-screen') ? 'block' : 'none';
+            }
+        }
+
+        function goHome() {
+            showScreen('selection-screen');
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'block';
+            if(mPlay) mPlay.style.display = 'none';
+            
+            const lUser = document.getElementById('login-user');
+            const lPass = document.getElementById('login-pass');
+            if(lUser) lUser.value = '';
+            if(lPass) lPass.value = '';
+            myMobileIndex = null;
+            renderMobileAvatarGrid();
+        }
+
+        // --- AUTHENTICATION & SETTINGS ---
+        function showAdminLogin() { 
+            if (localStorage.getItem('myth_admin_pass') === "") { 
+                initAdmin(); 
+            } else { 
+                showScreen('admin-login-screen'); 
+                setTimeout(() => {
+                    const lu = document.getElementById('login-user');
+                    if(lu) lu.focus();
+                }, 100); 
+            }
+        }
+
+        function attemptLogin() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+            const savedU = localStorage.getItem('myth_admin_user');
+            const savedP = localStorage.getItem('myth_admin_pass');
+
+            if(u === savedU && p === savedP) {
+                document.getElementById('login-user').value = '';
+                document.getElementById('login-pass').value = '';
+                initAdmin();
+            } else { 
+                alert("Incorrect credentials. The Gods reject you."); 
+            }
+        }
+
+        function openSettings() {
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.style.display = 'flex';
+            
+            const nUser = document.getElementById('new-admin-user');
+            const oPass = document.getElementById('old-admin-pass');
+            const nPass = document.getElementById('new-admin-pass');
+            if(nUser) nUser.value = localStorage.getItem('myth_admin_user');
+            if(oPass) oPass.value = '';
+            if(nPass) nPass.value = '';
+            
+            const currentPass = localStorage.getItem('myth_admin_pass');
+            const passContainer = document.getElementById('current-pass-container');
+            const delPassBtn = document.getElementById('btn-delete-pass');
+            
+            if(currentPass === "") {
+                if(passContainer) passContainer.style.display = 'none';
+                if(nPass) nPass.placeholder = "Set New Password";
+                if(delPassBtn) delPassBtn.style.display = 'none';
+            } else {
+                if(passContainer) passContainer.style.display = 'block';
+                if(nPass) nPass.placeholder = "New Password (Optional)";
+                if(delPassBtn) delPassBtn.style.display = 'block';
+            }
+        }
+
+        function closeSettings() { 
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.style.display = 'none'; 
+        }
+
+        function saveSettings() {
+            const newU = document.getElementById('new-admin-user').value;
+            const oldP = document.getElementById('old-admin-pass').value;
+            const newP = document.getElementById('new-admin-pass').value;
+            const savedP = localStorage.getItem('myth_admin_pass');
+
+            if (savedP !== "" && oldP !== savedP) { alert("Current password incorrect."); return; }
+            if (newU.trim() === '') { alert("Admin name cannot be empty."); return; }
+            
+            localStorage.setItem('myth_admin_user', newU);
+            if (newP.trim() !== '') { localStorage.setItem('myth_admin_pass', newP); }
+            
+            alert("Settings successfully forged in fire.");
+            closeSettings();
+        }
+
+        function deletePassword() {
+            const oldP = document.getElementById('old-admin-pass').value;
+            const savedP = localStorage.getItem('myth_admin_pass');
+
+            if (oldP !== savedP) { alert("Current password incorrect. Cannot delete."); return; }
+
+            localStorage.setItem('myth_admin_pass', ""); 
+            alert("Password deleted. The realm is open.");
+            openSettings(); 
+        }
+
+        // --- AVATAR CREATION, EDITING, AND DELETION ---
+        function openAvatarEditorPage() {
+            closeSettings();
+            showScreen('edit-avatars-screen');
+            renderAvatarEditList();
+        }
+        
+        function returnToAdminPanel() {
+            showScreen('admin-panel');
+            renderAdminAvatars(); 
+        }
+
+        function renderAvatarEditList() {
+            const list = document.getElementById('edit-avatar-grid-list');
+            if(!list) return;
+            list.innerHTML = '';
+            characterData.forEach((char, i) => {
+                list.innerHTML += `
+                    <div class="avatar-card" style="width: 120px;" onclick="openAvatarModal(${i})">
+                        <img src="${char.img}" class="avatar-img" style="height: 120px; animation: none;">
+                        <div class="avatar-name" style="font-size: 0.8rem; margin: 5px 0;">${char.name}</div>
+                        <button style="padding: 5px; font-size: 0.7rem; width: 90%; margin-bottom: 5px;">EDIT</button>
+                    </div>`;
+            });
+        }
+
+        function openAvatarModal(idx) {
+            const fileInput = document.getElementById('edit-avatar-file');
+            if(fileInput) fileInput.value = '';
+            
+            const cropCont = document.getElementById('crop-container');
+            if(cropCont) cropCont.style.display = 'none';
+            
+            if(cropper) { cropper.destroy(); cropper = null; }
+
+            const modalTitle = document.getElementById('avatar-modal-title');
+            const deleteBtn = document.getElementById('btn-delete-avatar');
+            const editIdxField = document.getElementById('edit-avatar-index');
+            const editNameField = document.getElementById('edit-avatar-name');
+
+            if (idx === null) {
+                if(editIdxField) editIdxField.value = "";
+                if(editNameField) editNameField.value = "";
+                if(modalTitle) modalTitle.innerText = "Create Avatar";
+                if(deleteBtn) deleteBtn.style.display = "none";
+            } else {
+                if(editIdxField) editIdxField.value = idx;
+                if(editNameField) editNameField.value = characterData[idx].name;
+                if(modalTitle) modalTitle.innerText = "Modify Avatar";
+                if(deleteBtn) deleteBtn.style.display = "block";
+                
+                const img = document.getElementById('image-to-crop');
+                if(img) {
+                    img.src = characterData[idx].img;
+                    if(cropCont) cropCont.style.display = 'block';
+                    cropper = new Cropper(img, {
+                        aspectRatio: 3 / 4,
+                        viewMode: 1,
+                        background: false
+                    });
+                }
+            }
+
+            const modal = document.getElementById('avatar-editor-modal');
+            if(modal) modal.style.display = 'flex';
+            setTimeout(() => {
+                if(editNameField) editNameField.focus();
+            }, 100);
+        }
+
+        function closeAvatarEditor() {
+            const modal = document.getElementById('avatar-editor-modal');
+            if(modal) modal.style.display = 'none';
+            if(cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        function deleteAvatar() {
+            const idxStr = document.getElementById('edit-avatar-index').value;
+            if(idxStr === "") return;
+            
+            if(!confirm("Banish this avatar? This action will reset all active player selections!")) return;
+            
+            const idx = parseInt(idxStr);
+            characterData.splice(idx, 1);
+            scores.splice(idx, 1);
+            claimed = {}; 
+            
+            saveAvatarState();
+            closeAvatarEditor();
+            renderAvatarEditList();
+        }
+
+        // --- DRAG, DROP, AND PASTE LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('drop-zone');
+            if(dropZone) {
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    if(e.dataTransfer.files.length) { processFile(e.dataTransfer.files[0]); }
+                });
+            }
+        });
+
+        window.addEventListener('paste', (e) => {
+            const modal = document.getElementById('avatar-editor-modal');
+            if (modal && modal.style.display === 'flex') {
+                if (e.clipboardData.files.length > 0) {
+                    e.preventDefault();
+                    processFile(e.clipboardData.files[0]);
+                }
+            }
+        });
+
+        function handleFileInput(event) {
+            if (event.target.files.length) { processFile(event.target.files[0]); }
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) return alert("Please drop or paste a valid image file.");
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('image-to-crop');
+                const cropCont = document.getElementById('crop-container');
+                if(img && cropCont) {
+                    img.src = e.target.result;
+                    cropCont.style.display = 'block';
+                    
+                    if(cropper) { cropper.destroy(); }
+                    
+                    cropper = new Cropper(img, {
+                        aspectRatio: 3 / 4,
+                        viewMode: 1,
+                        background: false
+                    });
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function saveAvatarEdits() {
+            const idxStr = document.getElementById('edit-avatar-index').value;
+            const newName = document.getElementById('edit-avatar-name').value;
+            
+            if(newName.trim() === "") { return alert("Name cannot be blank!"); }
+            
+            let finalImgUrl = null;
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({ width: 300, height: 400 });
+                finalImgUrl = canvas.toDataURL('image/jpeg', 0.8);
+            }
+
+            if (idxStr === "") {
+                if (!finalImgUrl) {
+                    return alert("Please upload or paste an image for the new avatar.");
+                }
+                characterData.push({ name: newName, img: finalImgUrl });
+                scores.push(0);
+                claimed = {}; 
+            } else {
+                const idx = parseInt(idxStr);
+                characterData[idx].name = newName;
+                if (finalImgUrl) {
+                    characterData[idx].img = finalImgUrl;
+                }
+            }
+
+            saveAvatarState();
+            closeAvatarEditor();
+            renderAvatarEditList();
+        }
+
+        function saveAvatarState() {
+            localStorage.setItem('myth_characters', JSON.stringify(characterData));
+            localStorage.setItem('myth_s', JSON.stringify(scores));
+            localStorage.setItem('myth_claimed', JSON.stringify(claimed));
+            localStorage.setItem('myth_update_chars', Date.now());
+        }
+
+        // --- CORE APPLICATION LOGIC ---
+        function initAdmin() { 
+            showScreen('admin-panel'); 
+            renderAdminQuestions(); 
+            renderAdminAvatars(); 
+        }
+
+        function initDisplay() { 
+            showScreen('main-display'); 
+            setupSync('display'); 
+        }
+        
+        function initMobile() {
+            showScreen('mobile-screen');
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'block';
+            if(mPlay) mPlay.style.display = 'none';
+            renderMobileAvatarGrid();
+            setupSync('mobile');
+        }
+
+        function renderMobileAvatarGrid() {
+            const grid = document.getElementById('mobile-selection-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            characterData.forEach((char, i) => {
+                const isLocked = (claimed[i] && myMobileIndex !== i) ? 'locked' : '';
+                grid.innerHTML += `
+                    <div class="avatar-card ${isLocked}" onclick="selectAvatar(${i})">
+                        <div class="locked-overlay">
+                            <div class="lock-icon">🔒</div>
+                            <div class="lock-text">LOCKED</div>
+                        </div>
+                        <img src="${char.img}" class="avatar-img" loading="lazy">
+                        <div class="avatar-name">${char.name}</div>
+                    </div>`;
+            });
+        }
+
+        function selectAvatar(idx) {
+            if(myMobileIndex !== null) claimed[myMobileIndex] = false;
+            myMobileIndex = idx;
+            claimed[idx] = true;
+            localStorage.setItem('myth_claimed', JSON.stringify(claimed));
+            
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'none';
+            if(mPlay) mPlay.style.display = 'block';
+            
+            const mName = document.getElementById('mobile-name');
+            const mImg = document.getElementById('mobile-img');
+            const mScore = document.getElementById('mobile-score');
+            
+            if(mName) mName.innerText = characterData[idx].name;
+            if(mImg) mImg.src = characterData[idx].img;
+            if(mScore) mScore.innerText = scores[idx];
+            
+            checkCurrentState('mobile');
+        }
+
+        function setupSync(mode) {
+            window.addEventListener('storage', (e) => {
+                if(e.key === 'myth_active') checkCurrentState(mode);
+                if(e.key === 'myth_ans_reveal') showAnswer(e.newValue, mode);
+                if(e.key === 'myth_scoreboard_toggle') {
+                    if(mode === 'display') {
+                        toggleScoreboardOverlay(e.newValue === 'true');
+                    }
+                }
+                if(e.key === 'myth_claimed' && mode === 'mobile') {
+                    claimed = JSON.parse(e.newValue) || {};
+                    const mSetup = document.getElementById('mobile-setup');
+                    if(mSetup && mSetup.style.display !== 'none') {
+                        renderMobileAvatarGrid();
+                    }
+                }
+                if(e.key === 'myth_trigger') {
+                    const data = JSON.parse(e.newValue);
+                    scores[data.index] = data.score;
+                    if(mode === 'mobile' && myMobileIndex === data.index) {
+                        const mScore = document.getElementById('mobile-score');
+                        if(mScore) mScore.innerText = data.score;
+                        triggerAbility('mobile-container');
+                    }
+                }
+                if(e.key === 'myth_update_chars') {
+                    characterData = JSON.parse(localStorage.getItem('myth_characters'));
+                    if(mode === 'mobile') {
+                        const mSetup = document.getElementById('mobile-setup');
+                        if(mSetup && mSetup.style.display !== 'none') {
+                            renderMobileAvatarGrid();
+                        } else if(myMobileIndex !== null && characterData[myMobileIndex]) {
+                            const mName = document.getElementById('mobile-name');
+                            const mImg = document.getElementById('mobile-img');
+                            if(mName) mName.innerText = characterData[myMobileIndex].name;
+                            if(mImg) mImg.src = characterData[myMobileIndex].img;
+                        } else {
+                            goHome();
+                        }
+                    }
+                }
+            });
+            if(mode === 'display') checkCurrentState('display');
+        }
+
+        function saveQuestion() {
+            const textEl = document.getElementById('q-text');
+            const ansEl = document.getElementById('q-ans');
+            const timeEl = document.getElementById('q-time');
+            const editIdxEl = document.getElementById('edit-index');
+            
+            if(!textEl) return;
+            const text = textEl.value;
+            const ans = ansEl ? ansEl.value : '';
+            const time = parseInt(timeEl ? timeEl.value : 30) || 30;
+            const editIndex = parseInt(editIdxEl ? editIdxEl.value : -1);
+            
+            if(!text.trim()) return alert("Question text cannot be blank.");
+            
+            if(editIndex >= 0) {
+                questions[editIndex] = { text, ans, time };
+            } else {
+                questions.push({ text, ans, time });
+            }
+
+            localStorage.setItem('myth_q', JSON.stringify(questions));
+            cancelEdit(); 
+            renderAdminQuestions();
+        }
+
+        function editQuestion(idx) {
+            document.getElementById('q-text').value = questions[idx].text;
+            document.getElementById('q-ans').value = questions[idx].ans;
+            document.getElementById('q-time').value = questions[idx].time;
+            document.getElementById('edit-index').value = idx;
+            document.getElementById('form-title').innerText = "Edit Challenge";
+            document.getElementById('btn-save').innerText = "UPDATE CHALLENGE";
+        }
+
+        function cancelEdit() {
+            document.getElementById('q-text').value = '';
+            document.getElementById('q-ans').value = '';
+            document.getElementById('q-time').value = '';
+            document.getElementById('edit-index').value = '-1';
+            document.getElementById('form-title').innerText = "Forge Challenge";
+            document.getElementById('btn-save').innerText = "SAVE CHALLENGE";
+        }
+
+        function deleteQuestion(idx) {
+            questions.splice(idx, 1);
+            localStorage.setItem('myth_q', JSON.stringify(questions));
+            renderAdminQuestions();
+        }
+
+        function renderAdminQuestions() {
+            const list = document.getElementById('q-list');
+            const select = document.getElementById('q-select');
+            if(!list || !select) return;
+            
+            list.innerHTML = ''; 
+            select.innerHTML = '<option value="">-- Choose Challenge --</option>';
+            
+            questions.forEach((q, i) => {
+                list.innerHTML += `
+                    <div class="q-row">
+                        <div><strong>Q${i+1}:</strong> <span>${q.text}</span></div>
+                        <div style="min-width: 80px; text-align:right;">
+                            <button style="padding: 5px; font-size: 0.7rem;" onclick="editQuestion(${i})">Edit</button>
+                            <button style="padding: 5px; font-size: 0.7rem; border-color: red;" onclick="deleteQuestion(${i})">X</button>
+                        </div>
+                    </div>`;
+                const truncatedText = q.text.length > 30 ? q.text.substring(0,30) + "..." : q.text;
+                select.innerHTML += `<option value="${i}">Q${i+1}: ${truncatedText}</option>`;
+            });
+            
+            if (window.MathJax) { MathJax.typesetPromise([list]).catch(() => {}); }
+        }
+
+        function startQuestion() {
+            const select = document.getElementById('q-select');
+            if(!select || select.value === '') return alert("Select a challenge.");
+            const idx = select.value;
+            const q = questions[idx];
+            localStorage.setItem('myth_ans_reveal', ""); 
+            localStorage.setItem('myth_active', JSON.stringify({ 
+                text: q.text, ans: q.ans, duration: q.time, endTime: Date.now() + (q.time * 1000) 
+            }));
+        }
+
+        function revealAnswer() {
+            const select = document.getElementById('q-select');
+            if(!select || select.value === '') return;
+            const idx = select.value;
+            const q = questions[idx];
+            if(q && q.ans) localStorage.setItem('myth_ans_reveal', q.ans);
+        }
+
+        function setScoreboardState(show) {
+            localStorage.setItem('myth_scoreboard_toggle', show ? 'true' : 'false');
+            toggleScoreboardOverlay(show);
+        }
+
+        function toggleScoreboardOverlay(show) {
+            const overlay = document.getElementById('scoreboard-overlay');
+            if(!overlay) return;
+            
+            if(show) {
+                const grid = document.getElementById('projector-scoreboard-grid');
+                if(grid) {
+                    grid.innerHTML = '';
+                    characterData.forEach((char, i) => {
+                        grid.innerHTML += `
+                            <div class="scoreboard-card">
+                                <img src="${char.img}" loading="lazy">
+                                <div class="name">${char.name}</div>
+                                <div class="score">${scores[i]}</div>
+                            </div>`;
+                    });
+                }
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function renderAdminAvatars() {
+            const list = document.getElementById('admin-avatar-list');
+            if(!list) return;
+            list.innerHTML = '';
+            characterData.forEach((char, i) => {
+                list.innerHTML += `
+                    <div class="avatar-card" style="width: 100px;">
+                        <img src="${char.img}" class="avatar-img" style="height: 80px;" loading="lazy">
+                        <div class="avatar-name" style="font-size: 0.8rem;">${char.name}</div>
+                        <h3 id="adm-sc-${i}" style="margin:5px 0; -webkit-text-fill-color: #fff;">${scores[i]}</h3>
+                        <input type="number" id="pts-${i}" placeholder="+" style="width: 90%; padding: 5px; margin: 5px auto; display:block; text-align:center;" onkeypress="if(event.key === 'Enter') award(${i})">
+                        <button onclick="award(${i})" style="width:90%; padding:5px; font-size:0.7rem; margin:auto; display:block;">ADD</button>
+                    </div>`;
+            });
+        }
+
+        function award(idx) {
+            const ptsInput = document.getElementById(`pts-${idx}`);
+            if(!ptsInput) return;
+            const val = parseInt(ptsInput.value) || 0;
+            if(val === 0) return;
+            
+            scores[idx] += val;
+            localStorage.setItem('myth_s', JSON.stringify(scores));
+            localStorage.setItem('myth_trigger', JSON.stringify({ index: idx, score: scores[idx], ts: Date.now() }));
+            
+            const admSc = document.getElementById(`adm-sc-${idx}`);
+            if(admSc) admSc.innerText = scores[idx];
+            ptsInput.value = '';
+        }
+
+        function resetAll() {
+            if(confirm("Wipe all data and free the realms? This will not reset admin credentials or avatar pictures.")) { 
+                localStorage.removeItem('myth_q');
+                localStorage.removeItem('myth_s');
+                localStorage.removeItem('myth_claimed');
+                localStorage.removeItem('myth_active');
+                localStorage.removeItem('myth_ans_reveal');
+                localStorage.removeItem('myth_scoreboard_toggle');
+                location.reload(); 
+            }
+        }
+
+        function autoScaleQuestionText() {
+            const qEl = document.getElementById('display-question');
+            if(!qEl) return;
+            
+            let currentSize = 5; 
+            qEl.style.fontSize = currentSize + 'rem';
+            
+            while (qEl.scrollHeight > qEl.clientHeight && currentSize > 1) {
+                currentSize -= 0.2;
+                qEl.style.fontSize = currentSize + 'rem';
+            }
+        }
+
+        function checkCurrentState(mode) {
+            const qData = localStorage.getItem('myth_active');
+            if(!qData) return;
+            const q = JSON.parse(qData);
+            if(q) {
+                if(timerInterval) clearInterval(timerInterval);
+                const qEl = mode === 'display' ? document.getElementById('display-question') : document.getElementById('mobile-q-text');
+                const tEl = mode === 'display' ? document.getElementById('display-timer') : document.getElementById('mobile-timer');
+                
+                const aEl = mode === 'display' ? document.getElementById('display-answer') : document.getElementById('mobile-answer');
+                if(aEl) aEl.style.display = 'none';
+                
+                if(qEl) qEl.innerHTML = q.text; 
+                
+                if (window.MathJax && qEl) { 
+                    MathJax.typesetPromise([qEl]).then(() => {
+                        if (mode === 'display') autoScaleQuestionText();
+                    }).catch(() => {}); 
+                } else {
+                    if (mode === 'display') autoScaleQuestionText();
+                }
+                
+                timerInterval = setInterval(() => {
+                    const rem = Math.round((q.endTime - Date.now()) / 1000);
+                    if(rem <= 0) { 
+                        if(tEl) tEl.innerHTML = mode === 'display' ? `<span class="time-expired-text">TIME EXPIRED</span>` : `<span style="font-size: 1.5rem;">TIME EXPIRED</span>`; 
+                        clearInterval(timerInterval); 
+                    }
+                    else {
+                        if(tEl) tEl.innerText = mode === 'display' ? rem : `Time Left: ${rem}s`;
+                    }
+                }, 1000);
+            }
+            
+            const ans = localStorage.getItem('myth_ans_reveal');
+            if(ans) showAnswer(ans, mode);
+        }
+
+        function showAnswer(ans, mode) {
+            if(!ans) return;
+            const el = mode === 'display' ? document.getElementById('display-answer') : document.getElementById('mobile-answer');
+            if(!el) return;
+            el.innerText = mode === 'display' ? ans : "ANSWER: " + ans;
+            
+            if (window.MathJax) { MathJax.typesetPromise([el]).catch(() => {}); }
+            el.style.display = 'block';
+        }
+
+        function triggerAbility(id) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.classList.remove('animate-ability');
+            void el.offsetWidth; 
+            el.classList.add('animate-ability');
+            setTimeout(() => el.classList.remove('animate-ability'), 1600);
+        }
+    </script>
+</body>
+</html>

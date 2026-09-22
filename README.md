@@ -1,2 +1,2 @@
 # MM2
-trail
+The Mythologic Quiz of Gods

@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mythologic Quiz Arena</title>
+    
+    <!-- Cinematic Mythological Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- MathJax for LaTeX Rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Cropper.js for Avatar Cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <!-- Firebase App and Realtime Database SDKs (v10 compat for browser) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --gold: #d4af37;
+            --dark-gold: #aa8c2c;
+            --bg-deep-red: #1a0505;
+            --panel-bg: rgba(10, 2, 2, 0.95);
+        }
+
+        /* HIDE SCROLLBARS GLOBALLY */
+        ::-webkit-scrollbar { width: 0px; background: transparent; display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+
+        body {
+            margin: 0; padding: 0;
+            background: radial-gradient(circle at center, #3a0a0a 0%, #000000 100%);
+            color: var(--gold);
+            font-family: 'Cinzel', serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3 { 
+            font-family: 'Cinzel Decorative', serif; 
+            text-align: center; margin: 10px 0; 
+            background: linear-gradient(to bottom, #fcf6ba, #bf953f, #aa771c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.3);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #220808, #5a1c1c);
+            border: 1px solid var(--gold); color: var(--gold); 
+            font-family: 'Cinzel Decorative', serif; font-weight: 900;
+            padding: 12px 20px; cursor: pointer; border-radius: 3px; 
+            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        button:hover { 
+            background: linear-gradient(45deg, var(--dark-gold), var(--gold));
+            color: black; transform: scale(1.05); box-shadow: 0 0 25px var(--gold); 
+        }
+        
+        input, textarea, select {
+            background: rgba(0, 0, 0, 0.8); border: 1px solid var(--gold); color: white;
+            padding: 12px; font-family: 'Cinzel', serif; width: 100%; box-sizing: border-box; 
+            margin-bottom: 10px; font-size: 1rem;
+        }
+
+        .screen { display: none; padding: 20px; }
+        .active-screen { display: block; }
+
+        .back-btn {
+            position: absolute; top: 15px; left: 15px; font-size: 0.8rem; z-index: 50;
+            background: rgba(0,0,0,0.5); padding: 8px 15px;
+        }
+        
+        /* Secret Admin Trigger - Visible only on selection screen */
+        .secret-admin-btn {
+            position: fixed; bottom: 20px; left: 20px; font-size: 2rem; color: rgba(255,255,255,0.1);
+            cursor: pointer; user-select: none; z-index: 100; transition: color 0.3s;
+            display: block; 
+        }
+        .secret-admin-btn:hover { color: var(--gold); }
+
+        /* Cloud Sync Status Badge (Only inside Admin Control Panel) */
+        .cloud-badge {
+            position: absolute; top: 20px; right: 65px; z-index: 120;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.75rem; letter-spacing: 1px; font-weight: bold;
+            padding: 6px 14px; border-radius: 20px;
+            background: rgba(15, 5, 5, 0.85); border: 1px solid var(--gold);
+            cursor: pointer; transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0,0,0,0.7);
+        }
+        .cloud-badge:hover { transform: scale(1.03); border-color: #fff; }
+        .cloud-indicator { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .status-connected { background-color: #00ff66; box-shadow: 0 0 10px #00ff66; }
+        .status-offline { background-color: #ffaa00; box-shadow: 0 0 8px #ffaa00; }
+        .status-error { background-color: #ff3333; box-shadow: 0 0 8px #ff3333; }
+
+        #selection-screen { text-align: center; margin-top: 20vh; }
+        .mode-btn { font-size: 1.2rem; padding: 20px; width: 350px; margin: 20px auto; display: block; }
+
+        #admin-panel, #edit-avatars-screen { max-width: 900px; margin: 50px auto; background: var(--panel-bg); padding: 30px; border: 1px solid var(--gold); border-radius: 5px; box-shadow: 0 0 50px rgba(0,0,0,0.8); position: relative; }
+        .admin-section { border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 20px; margin-bottom: 20px; }
+        .q-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.7); padding: 15px; border: 1px solid #4a1515; margin-bottom: 5px; }
+        .admin-avatars { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+
+        .gear-icon {
+            position: absolute; top: 20px; right: 20px; font-size: 1.8rem; cursor: pointer; color: var(--gold); transition: transform 0.3s ease;
+        }
+        .gear-icon:hover { transform: rotate(90deg); text-shadow: 0 0 15px var(--gold); }
+        
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--panel-bg); border: 2px solid var(--gold); padding: 35px; border-radius: 5px; width: 90%; max-width: 520px; text-align: center; box-shadow: 0 0 35px rgba(212, 175, 55, 0.3);
+            max-height: 90vh; overflow-y: auto; box-sizing: border-box;
+        }
+
+        /* --- PROJECTOR DISPLAY BOARD --- */
+        #main-display { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            overflow: hidden; padding: 0; background: radial-gradient(circle at center, #3a0a0a 0%, #000000 100%);
+        }
+        #main-display-container {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 100vh; width: 100vw; padding: 20px; box-sizing: border-box;
+        }
+        .cinematic-board {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 40px; background: rgba(0,0,0,0.85); 
+            border: 2px solid var(--gold); width: 95%; max-width: 1600px; height: 90%; 
+            box-shadow: 0 0 60px rgba(212, 175, 55, 0.2), inset 0 0 40px rgba(0,0,0,0.9);
+            border-radius: 10px; position: relative;
+        }
+        .cinematic-board::before {
+            content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+            border: 1px solid rgba(212, 175, 55, 0.3); pointer-events: none;
+        }
+        
+        #display-question { 
+            width: 100%; flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+            margin-bottom: 20px; color: #fff; font-weight: 700; text-shadow: 0 5px 15px rgba(0,0,0,0.9);
+            word-wrap: break-word; overflow: hidden; text-align: justify; text-justify: inter-word;
+        }
+        
+        #display-question mjx-container {
+            text-align: left !important;
+            display: inline-block !important;
+            margin: 0 4px !important;
+        }
+        #display-question mjx-container[jax="SVG"] {
+            display: inline !important;
+        }
+        
+        #display-timer { 
+            flex-shrink: 0; font-size: clamp(4rem, 8vw, 7rem); color: #ff3333; font-weight: 900; 
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.6); font-family: 'Cinzel Decorative', serif;
+            min-height: 120px; text-align: center;
+        }
+        
+        .time-expired-text {
+            font-size: clamp(1.5rem, 4vw, 3rem); 
+            color: #ff3333; display: flex; align-items: center; justify-content: center; height: 100%;
+        }
+
+        #display-answer { 
+            flex-shrink: 0; font-size: clamp(2rem, 4vw, 3.5rem); color: #00ffcc; margin-top: 10px; display: none; 
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5); font-family: 'Cinzel Decorative', serif; text-align: center;
+        }
+
+        /* FULLSCREEN SCOREBOARD OVERLAY */
+        #scoreboard-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 1, 1, 0.96); z-index: 50; display: none;
+            flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+            overflow: hidden;
+        }
+        .scoreboard-grid {
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px; 
+            width: 100%; max-width: 1450px; max-height: 75vh; overflow: hidden; padding: 5px;
+        }
+        .scoreboard-card {
+            background: #150606; border: 1.5px solid var(--gold); border-radius: 6px;
+            width: 125px; text-align: center; padding: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        }
+        .scoreboard-card img {
+            width: 100%; height: 95px; object-fit: cover; border-bottom: 1.5px solid var(--dark-gold); border-radius: 3px;
+        }
+        .scoreboard-card .name { font-size: 0.75rem; margin-top: 4px; font-weight: bold; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scoreboard-card .score { font-size: 1.3rem; font-weight: 900; color: #fff; margin-top: 1px; }
+
+        /* AVATAR GRID & ANIMATIONS */
+        .avatar-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; padding: 20px; }
+        .avatar-card { 
+            background: #110505; border: 2px solid var(--gold); border-radius: 5px;
+            width: 130px; text-align: center; position: relative; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8); overflow: hidden; padding-bottom: 10px;
+        }
+        
+        @keyframes live-breathing {
+            0% { transform: scale(1) translateY(0); filter: brightness(1) contrast(1); }
+            50% { transform: scale(1.03) translateY(-3px); filter: brightness(1.1) contrast(1.05); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1) contrast(1); }
+        }
+
+        .avatar-img {
+            width: 100%; height: 160px; object-fit: cover; border-bottom: 2px solid var(--dark-gold);
+            background: #000; animation: live-breathing 4s infinite ease-in-out;
+        }
+        
+        .avatar-name { font-size: 1rem; margin-top: 8px; font-weight: bold; color: var(--gold); }
+        .avatar-score { font-size: 1.5rem; font-weight: 900; color: #fff; }
+
+        .locked-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: var(--gold); z-index: 10;
+        }
+        .locked .locked-overlay { display: flex; }
+        .locked .avatar-img { filter: grayscale(100%) opacity(0.3); animation: none; }
+        .locked { pointer-events: none; border-color: #333; }
+        .lock-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .lock-text { font-size: 0.8rem; font-weight: bold; letter-spacing: 2px; }
+
+        @keyframes ability {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.15) translateY(-10px); filter: brightness(1.5); box-shadow: 0 0 40px cyan, inset 0 0 20px cyan; border-color: cyan; }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .animate-ability { animation: ability 1.5s forwards !important; }
+        .animate-ability .avatar-img { animation: none; }
+        .animate-ability .avatar-score { color: cyan; transform: scale(1.8); transition: 0.5s; text-shadow: 0 0 20px cyan; }
+
+        #mobile-screen { text-align: center; max-width: 500px; margin: 40px auto; position: relative;}
+        .mobile-hero-img { 
+            width: 220px; height: 300px; margin: 20px auto; border-radius: 5px; 
+            border: 3px solid var(--gold); display: block; object-fit: cover;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.2); animation: live-breathing 4s infinite ease-in-out;
+        }
+        #mobile-q-text { font-size: 1.1rem; line-height: 1.4; text-align: justify; }
+
+        /* --- DRAG, DROP, PASTE, & CROP --- */
+        .drop-zone {
+            border: 2px dashed var(--gold); padding: 25px; text-align: center; 
+            cursor: pointer; color: #aaa; margin-bottom: 15px; font-size: 0.9rem;
+            transition: all 0.3s ease; border-radius: 5px; background: rgba(0,0,0,0.5);
+        }
+        .drop-zone.dragover { background: rgba(212, 175, 55, 0.2); border-color: #fff; color: #fff; }
+        .img-container { max-height: 300px; overflow: hidden; margin-bottom: 15px; border: 1px solid var(--gold); display: none; }
+        
+        .code-box {
+            background: #000; border: 1px solid #442222; color: #00ffcc;
+            font-family: monospace; font-size: 0.8rem; padding: 10px; text-align: left;
+            border-radius: 4px; overflow-x: auto; white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Secret Admin Trigger (Only visible on selection screen) -->
+    <div id="secret-admin-trigger" class="secret-admin-btn" onclick="showAdminLogin()">&#8942;</div>
+
+    <!-- 1. Selection Screen -->
+    <div id="selection-screen" class="screen active-screen">
+        <h1 style="font-size: clamp(3rem, 6vw, 4.5rem); margin-bottom: 0;">MYTHOLOGIC</h1>
+        <h2 style="font-size: clamp(1.8rem, 4vw, 2.5rem); margin-top: 0; color: #fff; -webkit-text-fill-color: #fff; text-shadow: 0 0 10px #fff;">QUIZ ARENA</h2>
+        <p style="color: #aaa; margin-bottom: 40px; letter-spacing: 4px;">AWAIT THE GODS</p>
+        <button class="mode-btn" onclick="initDisplay()">Launch Main Display</button>
+        <button class="mode-btn" onclick="initMobile()">Player Device (Mobile)</button>
+    </div>
+
+    <!-- Admin Login Screen -->
+    <div id="admin-login-screen" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div class="cinematic-board" style="max-width: 450px; height: auto; margin: 15vh auto; padding: 40px; border-radius: 10px;">
+            <h2>ADMIN ACCESS</h2>
+            <input type="text" id="login-user" placeholder="Admin Name">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button onclick="attemptLogin()" style="width: 100%; margin-top: 15px;">ENTER REALM</button>
+        </div>
+    </div>
+
+    <!-- 2. Admin Panel -->
+    <div id="admin-panel" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div id="cloud-badge" class="cloud-badge" onclick="requestFirebaseAccess()" title="Firebase Cloud Sync Status">
+            <span id="cloud-indicator" class="cloud-indicator status-offline"></span>
+            <span id="cloud-status-text">LOCAL MODE</span>
+        </div>
+        <div class="gear-icon" onclick="openSettings()" title="Settings">&#9881;</div>
+        
+        <h1 style="margin-top: 30px;">Admin Control</h1>
+        
+        <div class="admin-section">
+            <h2 id="form-title">Forge Challenge</h2>
+            <input type="hidden" id="edit-index" value="-1">
+            <textarea id="q-text" rows="3" placeholder="Question text... You can use LaTeX! e.g., $E=mc^2$ or $$\frac{1}{2}$$"></textarea>
+            <input type="text" id="q-ans" placeholder="Answer (Secret until revealed)">
+            <input type="number" id="q-time" placeholder="Time limit (seconds)">
+            <button onclick="saveQuestion()" style="width: 100%;" id="btn-save">SAVE CHALLENGE</button>
+            <div id="q-list" style="margin-top: 15px; max-height: 200px; overflow-y: scroll;"></div>
+        </div>
+
+        <div class="admin-section">
+            <h2>Active Game Control</h2>
+            <select id="q-select"></select>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="startQuestion()" style="flex: 1; border-color: #00ff00;">START TIMER</button>
+                <button onclick="revealAnswer()" style="flex: 1; border-color: #00ccff;">REVEAL ANSWER</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="setScoreboardState(true)" style="flex: 1; border-color: var(--gold); background: linear-gradient(45deg, #442200, #885500); color: #fff;">DISPLAY ALL SCORES</button>
+                <button onclick="setScoreboardState(false)" style="flex: 1; border-color: #ff3333; background: linear-gradient(45deg, #440000, #880000); color: #fff;">STOP DISPLAYING SCORES</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h2>Divine Favor (Scores)</h2>
+            <div class="admin-avatars" id="admin-avatar-list"></div>
+        </div>
+        <button onclick="resetAll()" style="border-color: #ff0000; color: #ffaa00; width: 100%;">Hard Reset Realm</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="settings-title">Admin Settings</h2>
+            
+            <button onclick="openAvatarEditorPage()" style="width: 100%; margin-bottom: 12px; background: #0055aa; border-color: #00ffcc; color: white;">EDIT AVATARS</button>
+            <button onclick="requestFirebaseAccess()" style="width: 100%; margin-bottom: 20px; background: #884400; border-color: #ffaa00; color: #fff;">🔥 FIREBASE CLOUD SETUP</button>
+            
+            <input type="text" id="new-admin-user" placeholder="Admin Name">
+            <div id="current-pass-container">
+                <input type="password" id="old-admin-pass" placeholder="Current Password (Required)">
+            </div>
+            <input type="password" id="new-admin-pass" placeholder="New Password">
+            
+            <button onclick="saveSettings()" style="width: 100%; margin-bottom: 10px; margin-top: 10px;">SAVE CREDENTIALS</button>
+            <button id="btn-delete-pass" onclick="deletePassword()" style="width: 100%; margin-bottom: 10px; background: #800000; border-color: #ff0000; color: white;">DELETE PASSWORD</button>
+            <button onclick="closeSettings()" style="width: 100%; background: transparent; border-color: #555;">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- Firebase Developer Auth Verification Modal -->
+    <div id="firebase-auth-modal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <h2>🔥 CLOUD SECURITY</h2>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px; line-height: 1.4;">
+                Enter Developer Credentials to access Firebase Cloud Setup.
+            </p>
+            <input type="text" id="fb-auth-user" placeholder="Developer ID">
+            <input type="password" id="fb-auth-pass" placeholder="Developer Password">
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="verifyFirebaseAuth()" style="flex: 2; background: linear-gradient(45deg, #884400, #ffaa00); border-color: var(--gold); color: #fff;">UNLOCK</button>
+                <button onclick="closeFirebaseAuthModal()" style="flex: 1; background: transparent; border-color: #555;">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Cloud Setup Modal -->
+    <div id="firebase-modal" class="modal">
+        <div class="modal-content">
+            <h2>🔥 Firebase Cloud Link</h2>
+            <p style="font-size: 0.85rem; color: #ccc; margin-bottom: 15px; text-align: justify; line-height: 1.4;">
+                Link to <strong>Firebase Realtime Database</strong> to permanently store all questions, scores, and avatar changes. All tabs and mobile phones will sync live across the internet!
+            </p>
+            
+            <div id="fb-connection-alert" style="padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background: rgba(255,170,0,0.15); border: 1px solid #ffaa00; color: #ffcc00;">
+                Current: Local Storage (Tab-only)
+            </div>
+
+            <textarea id="firebase-config-input" rows="6" placeholder='Paste your Firebase Config object here, e.g.:&#10;{&#10;  "apiKey": "AIzaSy...",&#10;  "databaseURL": "https://your-app-rtdb.firebaseio.com",&#10;  "projectId": "your-app"&#10;}' style="font-family: monospace; font-size: 0.8rem;"></textarea>
+
+            <button onclick="saveFirebaseConfigFromInput()" style="width: 100%; margin-bottom: 10px; background: linear-gradient(45deg, #006622, #00aa44); border-color: #00ff66; color: white;">CONNECT & SYNC TO FIREBASE</button>
+            <button onclick="clearFirebaseConfig()" style="width: 100%; margin-bottom: 10px; background: #551111; border-color: #aa3333; color: #ffaaaa;">DISCONNECT / USE LOCAL ONLY</button>
+            <button onclick="closeFirebaseModal()" style="width: 100%; background: transparent; border-color: #555;">CLOSE</button>
+
+            <div style="margin-top: 20px; text-align: left; font-size: 0.75rem; color: #888;">
+                <strong style="color: var(--gold);">Quick Setup Guide:</strong>
+                <ol style="padding-left: 20px; margin-top: 5px; line-height: 1.4;">
+                    <li>Create a project on <a href="https://console.firebase.google.com" target="_blank" style="color: #00ffcc;">firebase.google.com</a>.</li>
+                    <li>Add a Web App and copy the <code style="color:#00ffcc;">firebaseConfig</code> snippet.</li>
+                    <li>Create a <strong>Realtime Database</strong> & enable Test Mode (or set rules: <code style="color:#00ffcc;">{".read": true, ".write": true}</code>).</li>
+                    <li>Paste the snippet above and click Connect!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Avatars Page -->
+    <div id="edit-avatars-screen" class="screen">
+        <button class="back-btn" onclick="returnToAdminPanel()">&#8592; RETURN</button>
+        <h1 style="margin-top: 30px;">Forge Avatars</h1>
+        <button onclick="openAvatarModal(null)" style="display:block; margin: 0 auto 20px auto; border-color: #00ff00;">+ CREATE NEW AVATAR</button>
+        <div class="avatar-grid" id="edit-avatar-grid-list"></div>
+    </div>
+
+    <!-- Avatar Editor Modal -->
+    <div id="avatar-editor-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="avatar-modal-title">Modify Avatar</h2>
+            <input type="hidden" id="edit-avatar-index">
+            <input type="text" id="edit-avatar-name" placeholder="Character Name">
+            
+            <div id="drop-zone" class="drop-zone" onclick="document.getElementById('edit-avatar-file').click()">
+                Click to Browse, Drag & Drop, or Paste (Ctrl+V) Image Here
+                <input type="file" id="edit-avatar-file" accept="image/*" onchange="handleFileInput(event)" style="display:none;">
+            </div>
+            
+            <div class="img-container" id="crop-container">
+                <img id="image-to-crop" src="" style="max-width: 100%;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="saveAvatarEdits()" style="flex: 2; border-color: #00ff00;">SAVE AVATAR</button>
+                <button id="btn-delete-avatar" onclick="deleteAvatar()" style="flex: 1; background: #800000; border-color: red; color: white;" title="Delete Character">DELETE</button>
+            </div>
+            <button onclick="closeAvatarEditor()" style="width: 100%; background: transparent; border-color: #555;">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- 3. Main Display Screen -->
+    <div id="main-display" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        <div id="main-display-container">
+            <div class="cinematic-board">
+                <!-- Scoreboard Overlay inside Display -->
+                <div id="scoreboard-overlay">
+                    <h2>PANTHEON SCOREBOARD</h2>
+                    <div class="scoreboard-grid" id="projector-scoreboard-grid"></div>
+                </div>
+
+                <div id="display-question">THE ARENA AWAITS...</div>
+                <div id="display-timer">--</div>
+                <div id="display-answer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Mobile Screen -->
+    <div id="mobile-screen" class="screen">
+        <button class="back-btn" onclick="goHome()">&#8592; RETURN</button>
+        
+        <div id="mobile-setup">
+            <h2 style="margin-top: 30px; font-size: 2.5rem;">Select Destiny</h2>
+            <div class="avatar-grid" id="mobile-selection-grid"></div>
+        </div>
+
+        <div id="mobile-play" style="display: none;">
+            <h2 id="mobile-name" style="font-size: 2.5rem; margin-top: 30px;"></h2>
+            <div id="mobile-container">
+                <img id="mobile-img" src="" class="mobile-hero-img">
+                <h1 id="mobile-score" style="font-size: 5rem; margin: 10px 0; -webkit-text-fill-color: #fff;">0</h1>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.85); border: 1px solid var(--gold); padding: 20px; margin-top: 20px; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #aaa; -webkit-text-fill-color: #aaa;">CURRENT CHALLENGE</h3>
+                <p id="mobile-q-text">Waiting for the Gods...</p>
+                <div id="mobile-timer" style="color: #ff3333; font-size: 2.5rem; font-weight: bold; font-family: 'Cinzel Decorative', serif;"></div>
+                <div id="mobile-answer" style="color: #00ffcc; font-size: 1.8rem; display: none; margin-top: 15px; font-family: 'Cinzel Decorative', serif;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           FIREBASE REALTIME DATABASE CONFIGURATION & PERSISTENCE ENGINE
+           ========================================================================== */
+        const EMBEDDED_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBC_kEQPoS5xLQVPMm6XcSjmomzckcTkSE",
+            authDomain: "mathmania-3d72f.firebaseapp.com",
+            databaseURL: "https://mathmania-3d72f-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mathmania-3d72f",
+            storageBucket: "mathmania-3d72f.firebasestorage.app",
+            messagingSenderId: "245017748437",
+            appId: "1:245017748437:web:786254cb9753c1bfd9135c"
+        };
+
+        let db = null;
+        let isFirebaseActive = false;
+        let activeScreenId = 'selection-screen';
+
+        // --- INITIALIZATION & DEFAULT DATA ---
+        if(localStorage.getItem('myth_admin_user') === '23bma111' && localStorage.getItem('myth_admin_pass') === '23bma111') {
+            localStorage.setItem('myth_admin_user', 'ADMIN');
+            localStorage.setItem('myth_admin_pass', 'password');
+        }
+        if(!localStorage.getItem('myth_admin_user')) { localStorage.setItem('myth_admin_user', 'ADMIN'); }
+        if(localStorage.getItem('myth_admin_pass') === null) { localStorage.setItem('myth_admin_pass', 'password'); }
+
+        const defaultNames = [
+            "Zeus", "Hera", "Poseidon", "Hades", "Athena", "Ares", "Apollo", "Artemis", 
+            "Aphrodite", "Hermes", "Hephaestus", "Demeter", "Dionysus", "Hestia", 
+            "Persephone", "Helios", "Selene", "Nike", "Thanatos", "Hypnos"
+        ];
+        
+        let characterData = JSON.parse(localStorage.getItem('myth_characters'));
+        if (!characterData) {
+            const aiPrompt = "Epic portrait of Greek god, dark fantasy, cinematic lighting, gold and dark red aesthetic";
+            characterData = defaultNames.map(name => ({
+                name: name,
+                img: `https://image.pollinations.ai/prompt/${name}%20Greek%20God%20${aiPrompt}?width=300&height=400&nologo=true`
+            }));
+            localStorage.setItem('myth_characters', JSON.stringify(characterData));
+        }
+
+        let questions = JSON.parse(localStorage.getItem('myth_q')) || [];
+        let scores = JSON.parse(localStorage.getItem('myth_s')) || Array(characterData.length).fill(0);
+        let claimed = JSON.parse(localStorage.getItem('myth_claimed')) || {};
+        let timerInterval = null;
+        let myMobileIndex = null;
+        let cropper = null;
+
+        // --- FIREBASE INITIALIZATION & SYNC LOGIC ---
+        function getFirebaseConfig() {
+            if (EMBEDDED_FIREBASE_CONFIG) return EMBEDDED_FIREBASE_CONFIG;
+            const saved = localStorage.getItem('myth_firebase_config');
+            if (saved) {
+                try { return JSON.parse(saved); } catch(e) { console.error("Invalid saved Firebase config", e); }
+            }
+            return null;
+        }
+
+        function initFirebase() {
+            const config = getFirebaseConfig();
+            if (!config || !config.apiKey) {
+                updateCloudBadge(false, "LOCAL MODE");
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(config);
+                }
+                db = firebase.database();
+                isFirebaseActive = true;
+
+                // Monitor connection state
+                db.ref('.info/connected').on('value', (snap) => {
+                    if (snap.val() === true) {
+                        updateCloudBadge(true, "FIREBASE CONNECTED");
+                    } else {
+                        updateCloudBadge(false, "RECONNECTING...");
+                    }
+                });
+
+                // Attach main Realtime Database sync listener
+                db.ref('myth_quiz').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (!data) {
+                        // Empty Firebase DB: seed with default data!
+                        seedFirebase();
+                        return;
+                    }
+
+                    handleCloudSyncUpdate(data);
+                });
+
+            } catch (err) {
+                console.error("Firebase init failed:", err);
+                updateCloudBadge(false, "FIREBASE ERROR");
+            }
+        }
+
+        function updateCloudBadge(connected, text) {
+            const ind = document.getElementById('cloud-indicator');
+            const txt = document.getElementById('cloud-status-text');
+            if (ind && txt) {
+                ind.className = 'cloud-indicator ' + (connected ? 'status-connected' : 'status-offline');
+                txt.innerText = text;
+            }
+            const alertBox = document.getElementById('fb-connection-alert');
+            if (alertBox) {
+                if (connected) {
+                    alertBox.style.background = 'rgba(0, 255, 102, 0.15)';
+                    alertBox.style.borderColor = '#00ff66';
+                    alertBox.style.color = '#00ffcc';
+                    alertBox.innerText = '🟢 Permanent Cloud Sync is LIVE via Firebase Realtime Database!';
+                } else {
+                    alertBox.style.background = 'rgba(255, 170, 0, 0.15)';
+                    alertBox.style.borderColor = '#ffaa00';
+                    alertBox.style.color = '#ffcc00';
+                    alertBox.innerText = '🟡 Local Storage only. Tab close/reopen on this browser works, but add Firebase config below for cross-device sync & permanent cloud backup.';
+                }
+            }
+        }
+
+        function seedFirebase() {
+            if (!isFirebaseActive || !db) return;
+            const seedPayload = {
+                admin: {
+                    user: localStorage.getItem('myth_admin_user') || 'ADMIN',
+                    pass: localStorage.getItem('myth_admin_pass') !== null ? localStorage.getItem('myth_admin_pass') : 'password'
+                },
+                characters: characterData,
+                questions: questions,
+                scores: scores,
+                claimed: claimed,
+                active: null,
+                ans_reveal: "",
+                scoreboard_toggle: false
+            };
+            db.ref('myth_quiz').set(seedPayload);
+        }
+
+        function syncToCloud(path, value) {
+            if (isFirebaseActive && db) {
+                db.ref('myth_quiz/' + path).set(value).catch(err => {
+                    console.error("Cloud write failed on " + path, err);
+                });
+            }
+        }
+
+        function handleCloudSyncUpdate(data) {
+            // Update in-memory state & local storage cache
+            if (data.characters) {
+                characterData = data.characters;
+                localStorage.setItem('myth_characters', JSON.stringify(characterData));
+            }
+            if (data.questions !== undefined) {
+                questions = data.questions ? Object.values(data.questions) : [];
+                localStorage.setItem('myth_q', JSON.stringify(questions));
+            }
+            if (data.scores) {
+                scores = Array.isArray(data.scores) ? data.scores : Object.values(data.scores);
+                localStorage.setItem('myth_s', JSON.stringify(scores));
+            }
+            if (data.claimed !== undefined) {
+                claimed = data.claimed || {};
+                localStorage.setItem('myth_claimed', JSON.stringify(claimed));
+            }
+            if (data.admin) {
+                if (data.admin.user !== undefined) localStorage.setItem('myth_admin_user', data.admin.user);
+                if (data.admin.pass !== undefined) localStorage.setItem('myth_admin_pass', data.admin.pass);
+            }
+
+            // Sync active question state
+            if (data.active !== undefined) {
+                if (data.active) {
+                    localStorage.setItem('myth_active', JSON.stringify(data.active));
+                } else {
+                    localStorage.removeItem('myth_active');
+                }
+            }
+
+            // Sync answer reveal
+            if (data.ans_reveal !== undefined) {
+                localStorage.setItem('myth_ans_reveal', data.ans_reveal || "");
+            }
+
+            // Sync scoreboard overlay
+            if (data.scoreboard_toggle !== undefined) {
+                localStorage.setItem('myth_scoreboard_toggle', data.scoreboard_toggle ? 'true' : 'false');
+            }
+
+            // Trigger score ability animation if updated
+            if (data.trigger) {
+                const tr = data.trigger;
+                if (activeScreenId === 'mobile-screen' && myMobileIndex === tr.index) {
+                    const mScore = document.getElementById('mobile-score');
+                    if (mScore) mScore.innerText = tr.score;
+                    triggerAbility('mobile-container');
+                }
+            }
+
+            // Update UI on screen
+            refreshActiveScreen(data);
+        }
+
+        function refreshActiveScreen(data) {
+            if (activeScreenId === 'admin-panel') {
+                renderAdminQuestions();
+                renderAdminAvatars();
+            } else if (activeScreenId === 'edit-avatars-screen') {
+                renderAvatarEditList();
+            } else if (activeScreenId === 'main-display') {
+                checkCurrentState('display');
+                if (data && data.scoreboard_toggle !== undefined) {
+                    toggleScoreboardOverlay(data.scoreboard_toggle === true || data.scoreboard_toggle === 'true');
+                }
+            } else if (activeScreenId === 'mobile-screen') {
+                const mSetup = document.getElementById('mobile-setup');
+                if (mSetup && mSetup.style.display !== 'none') {
+                    renderMobileAvatarGrid();
+                } else if (myMobileIndex !== null && characterData[myMobileIndex]) {
+                    const mName = document.getElementById('mobile-name');
+                    const mImg = document.getElementById('mobile-img');
+                    const mScore = document.getElementById('mobile-score');
+                    if (mName) mName.innerText = characterData[myMobileIndex].name;
+                    if (mImg) mImg.src = characterData[myMobileIndex].img;
+                    if (mScore) mScore.innerText = scores[myMobileIndex];
+                    checkCurrentState('mobile');
+                }
+            }
+        }
+
+        // --- FIREBASE DEVELOPER AUTH & MODAL ACTIONS ---
+        function requestFirebaseAccess() {
+            closeSettings();
+            const authModal = document.getElementById('firebase-auth-modal');
+            const uInput = document.getElementById('fb-auth-user');
+            const pInput = document.getElementById('fb-auth-pass');
+            if (uInput) uInput.value = '';
+            if (pInput) pInput.value = '';
+            if (authModal) authModal.style.display = 'flex';
+            setTimeout(() => { if (uInput) uInput.focus(); }, 100);
+        }
+
+        function closeFirebaseAuthModal() {
+            const authModal = document.getElementById('firebase-auth-modal');
+            if (authModal) authModal.style.display = 'none';
+        }
+
+        function verifyFirebaseAuth() {
+            const u = document.getElementById('fb-auth-user').value.trim();
+            const p = document.getElementById('fb-auth-pass').value.trim();
+            if (u === '23bma111' && p === '23bma111') {
+                closeFirebaseAuthModal();
+                openFirebaseModal();
+            } else {
+                alert("Access Denied: Invalid Developer ID or Password.");
+            }
+        }
+
+        function openFirebaseModal() {
+            const modal = document.getElementById('firebase-modal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            
+            const saved = localStorage.getItem('myth_firebase_config');
+            const input = document.getElementById('firebase-config-input');
+            if (input && saved) {
+                input.value = saved;
+            }
+        }
+
+        function closeFirebaseModal() {
+            const modal = document.getElementById('firebase-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function saveFirebaseConfigFromInput() {
+            const input = document.getElementById('firebase-config-input');
+            if (!input || !input.value.trim()) {
+                alert("Please paste your Firebase configuration snippet or JSON object.");
+                return;
+            }
+
+            let raw = input.value.trim();
+            // Allow pasting standard JS const firebaseConfig = { ... }
+            if (raw.includes('{') && raw.includes('}')) {
+                const start = raw.indexOf('{');
+                const end = raw.lastIndexOf('}');
+                raw = raw.substring(start, end + 1);
+            }
+
+            try {
+                // Parse cleanly even with unquoted JS object keys
+                let parsedConfig;
+                try {
+                    parsedConfig = JSON.parse(raw);
+                } catch(jsonErr) {
+                    // Try evaluating safe JS object syntax
+                    parsedConfig = Function('"use strict";return (' + raw + ')')();
+                }
+
+                if (!parsedConfig || !parsedConfig.apiKey) {
+                    throw new Error("Missing apiKey in configuration.");
+                }
+
+                localStorage.setItem('myth_firebase_config', JSON.stringify(parsedConfig));
+                alert("Firebase configuration saved! Connecting to cloud...");
+                closeFirebaseModal();
+                
+                // Reinitialize
+                initFirebase();
+
+            } catch(e) {
+                alert("Could not parse Firebase config: " + e.message + "\nPlease make sure it contains valid apiKey, projectId, and databaseURL.");
+            }
+        }
+
+        function clearFirebaseConfig() {
+            if (confirm("Disconnect Firebase and switch to Local Storage mode?")) {
+                localStorage.removeItem('myth_firebase_config');
+                isFirebaseActive = false;
+                db = null;
+                updateCloudBadge(false, "LOCAL MODE");
+                alert("Switched to Local Mode.");
+                closeFirebaseModal();
+            }
+        }
+
+        // --- ENTER KEY NAVIGATION & SHORTCUT LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+
+            const loginUser = document.getElementById('login-user');
+            const loginPass = document.getElementById('login-pass');
+            if(loginUser) loginUser.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); loginPass.focus(); } });
+            if(loginPass) loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); attemptLogin(); } });
+
+            const fbAuthUser = document.getElementById('fb-auth-user');
+            const fbAuthPass = document.getElementById('fb-auth-pass');
+            if(fbAuthUser) fbAuthUser.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); fbAuthPass.focus(); } });
+            if(fbAuthPass) fbAuthPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); verifyFirebaseAuth(); } });
+
+            const avatarModal = document.getElementById('avatar-editor-modal');
+            if(avatarModal) {
+                avatarModal.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { 
+                        e.preventDefault(); saveAvatarEdits(); 
+                    }
+                });
+            }
+        });
+
+        function showScreen(id) {
+            activeScreenId = id;
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active-screen');
+            
+            const adminTrigger = document.getElementById('secret-admin-trigger');
+            if (adminTrigger) {
+                adminTrigger.style.display = (id === 'selection-screen') ? 'block' : 'none';
+            }
+        }
+
+        function goHome() {
+            showScreen('selection-screen');
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'block';
+            if(mPlay) mPlay.style.display = 'none';
+            
+            const lUser = document.getElementById('login-user');
+            const lPass = document.getElementById('login-pass');
+            if(lUser) lUser.value = '';
+            if(lPass) lPass.value = '';
+            myMobileIndex = null;
+            renderMobileAvatarGrid();
+        }
+
+        // --- AUTHENTICATION & SETTINGS ---
+        function showAdminLogin() { 
+            if (localStorage.getItem('myth_admin_pass') === "") { 
+                initAdmin(); 
+            } else { 
+                showScreen('admin-login-screen'); 
+                setTimeout(() => {
+                    const lu = document.getElementById('login-user');
+                    if(lu) lu.focus();
+                }, 100); 
+            }
+        }
+
+        function attemptLogin() {
+            const u = document.getElementById('login-user').value.trim();
+            const p = document.getElementById('login-pass').value.trim();
+            const savedU = localStorage.getItem('myth_admin_user') || 'ADMIN';
+            const savedP = localStorage.getItem('myth_admin_pass') !== null ? localStorage.getItem('myth_admin_pass') : 'password';
+
+            if(u === savedU && p === savedP) {
+                document.getElementById('login-user').value = '';
+                document.getElementById('login-pass').value = '';
+                initAdmin();
+            } else { 
+                alert("Incorrect credentials. The Gods reject you."); 
+            }
+        }
+
+        function openSettings() {
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.style.display = 'flex';
+            
+            const nUser = document.getElementById('new-admin-user');
+            const oPass = document.getElementById('old-admin-pass');
+            const nPass = document.getElementById('new-admin-pass');
+            if(nUser) nUser.value = localStorage.getItem('myth_admin_user');
+            if(oPass) oPass.value = '';
+            if(nPass) nPass.value = '';
+            
+            const currentPass = localStorage.getItem('myth_admin_pass');
+            const passContainer = document.getElementById('current-pass-container');
+            const delPassBtn = document.getElementById('btn-delete-pass');
+            
+            if(currentPass === "") {
+                if(passContainer) passContainer.style.display = 'none';
+                if(nPass) nPass.placeholder = "Set New Password";
+                if(delPassBtn) delPassBtn.style.display = 'none';
+            } else {
+                if(passContainer) passContainer.style.display = 'block';
+                if(nPass) nPass.placeholder = "New Password (Optional)";
+                if(delPassBtn) delPassBtn.style.display = 'block';
+            }
+        }
+
+        function closeSettings() { 
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.style.display = 'none'; 
+        }
+
+        function saveSettings() {
+            const newU = document.getElementById('new-admin-user').value;
+            const oldP = document.getElementById('old-admin-pass').value;
+            const newP = document.getElementById('new-admin-pass').value;
+            const savedP = localStorage.getItem('myth_admin_pass');
+
+            if (savedP !== "" && oldP !== savedP) { alert("Current password incorrect."); return; }
+            if (newU.trim() === '') { alert("Admin name cannot be empty."); return; }
+            
+            localStorage.setItem('myth_admin_user', newU);
+            const finalP = newP.trim() !== '' ? newP : savedP;
+            if (newP.trim() !== '') { localStorage.setItem('myth_admin_pass', newP); }
+            
+            syncToCloud('admin', { user: newU, pass: finalP });
+
+            alert("Settings successfully forged in fire & saved to cloud.");
+            closeSettings();
+        }
+
+        function deletePassword() {
+            const oldP = document.getElementById('old-admin-pass').value;
+            const savedP = localStorage.getItem('myth_admin_pass');
+
+            if (oldP !== savedP) { alert("Current password incorrect. Cannot delete."); return; }
+
+            localStorage.setItem('myth_admin_pass', ""); 
+            syncToCloud('admin/pass', "");
+            alert("Password deleted. The realm is open.");
+            openSettings(); 
+        }
+
+        // --- AVATAR CREATION, EDITING, AND DELETION ---
+        function openAvatarEditorPage() {
+            closeSettings();
+            showScreen('edit-avatars-screen');
+            renderAvatarEditList();
+        }
+        
+        function returnToAdminPanel() {
+            showScreen('admin-panel');
+            renderAdminAvatars(); 
+        }
+
+        function renderAvatarEditList() {
+            const list = document.getElementById('edit-avatar-grid-list');
+            if(!list) return;
+            list.innerHTML = '';
+            characterData.forEach((char, i) => {
+                list.innerHTML += `
+                    <div class="avatar-card" style="width: 120px;" onclick="openAvatarModal(${i})">
+                        <img src="${char.img}" class="avatar-img" style="height: 120px; animation: none;">
+                        <div class="avatar-name" style="font-size: 0.8rem; margin: 5px 0;">${char.name}</div>
+                        <button style="padding: 5px; font-size: 0.7rem; width: 90%; margin-bottom: 5px;">EDIT</button>
+                    </div>`;
+            });
+        }
+
+        function openAvatarModal(idx) {
+            const fileInput = document.getElementById('edit-avatar-file');
+            if(fileInput) fileInput.value = '';
+            
+            const cropCont = document.getElementById('crop-container');
+            if(cropCont) cropCont.style.display = 'none';
+            
+            if(cropper) { cropper.destroy(); cropper = null; }
+
+            const modalTitle = document.getElementById('avatar-modal-title');
+            const deleteBtn = document.getElementById('btn-delete-avatar');
+            const editIdxField = document.getElementById('edit-avatar-index');
+            const editNameField = document.getElementById('edit-avatar-name');
+
+            if (idx === null) {
+                if(editIdxField) editIdxField.value = "";
+                if(editNameField) editNameField.value = "";
+                if(modalTitle) modalTitle.innerText = "Create Avatar";
+                if(deleteBtn) deleteBtn.style.display = "none";
+            } else {
+                if(editIdxField) editIdxField.value = idx;
+                if(editNameField) editNameField.value = characterData[idx].name;
+                if(modalTitle) modalTitle.innerText = "Modify Avatar";
+                if(deleteBtn) deleteBtn.style.display = "block";
+                
+                const img = document.getElementById('image-to-crop');
+                if(img) {
+                    img.src = characterData[idx].img;
+                    if(cropCont) cropCont.style.display = 'block';
+                    cropper = new Cropper(img, {
+                        aspectRatio: 3 / 4,
+                        viewMode: 1,
+                        background: false
+                    });
+                }
+            }
+
+            const modal = document.getElementById('avatar-editor-modal');
+            if(modal) modal.style.display = 'flex';
+            setTimeout(() => {
+                if(editNameField) editNameField.focus();
+            }, 100);
+        }
+
+        function closeAvatarEditor() {
+            const modal = document.getElementById('avatar-editor-modal');
+            if(modal) modal.style.display = 'none';
+            if(cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        function deleteAvatar() {
+            const idxStr = document.getElementById('edit-avatar-index').value;
+            if(idxStr === "") return;
+            
+            if(!confirm("Banish this avatar? This action will reset all active player selections!")) return;
+            
+            const idx = parseInt(idxStr);
+            characterData.splice(idx, 1);
+            scores.splice(idx, 1);
+            claimed = {}; 
+            
+            saveAvatarState();
+            closeAvatarEditor();
+            renderAvatarEditList();
+        }
+
+        // --- DRAG, DROP, AND PASTE LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('drop-zone');
+            if(dropZone) {
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    if(e.dataTransfer.files.length) { processFile(e.dataTransfer.files[0]); }
+                });
+            }
+        });
+
+        window.addEventListener('paste', (e) => {
+            const modal = document.getElementById('avatar-editor-modal');
+            if (modal && modal.style.display === 'flex') {
+                if (e.clipboardData.files.length > 0) {
+                    e.preventDefault();
+                    processFile(e.clipboardData.files[0]);
+                }
+            }
+        });
+
+        function handleFileInput(event) {
+            if (event.target.files.length) { processFile(event.target.files[0]); }
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) return alert("Please drop or paste a valid image file.");
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('image-to-crop');
+                const cropCont = document.getElementById('crop-container');
+                if(img && cropCont) {
+                    img.src = e.target.result;
+                    cropCont.style.display = 'block';
+                    
+                    if(cropper) { cropper.destroy(); }
+                    
+                    cropper = new Cropper(img, {
+                        aspectRatio: 3 / 4,
+                        viewMode: 1,
+                        background: false
+                    });
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function saveAvatarEdits() {
+            const idxStr = document.getElementById('edit-avatar-index').value;
+            const newName = document.getElementById('edit-avatar-name').value;
+            
+            if(newName.trim() === "") { return alert("Name cannot be blank!"); }
+            
+            let finalImgUrl = null;
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({ width: 300, height: 400 });
+                finalImgUrl = canvas.toDataURL('image/jpeg', 0.8);
+            }
+
+            if (idxStr === "") {
+                if (!finalImgUrl) {
+                    return alert("Please upload or paste an image for the new avatar.");
+                }
+                characterData.push({ name: newName, img: finalImgUrl });
+                scores.push(0);
+                claimed = {}; 
+            } else {
+                const idx = parseInt(idxStr);
+                characterData[idx].name = newName;
+                if (finalImgUrl) {
+                    characterData[idx].img = finalImgUrl;
+                }
+            }
+
+            saveAvatarState();
+            closeAvatarEditor();
+            renderAvatarEditList();
+        }
+
+        function saveAvatarState() {
+            localStorage.setItem('myth_characters', JSON.stringify(characterData));
+            localStorage.setItem('myth_s', JSON.stringify(scores));
+            localStorage.setItem('myth_claimed', JSON.stringify(claimed));
+            localStorage.setItem('myth_update_chars', Date.now());
+
+            syncToCloud('characters', characterData);
+            syncToCloud('scores', scores);
+            syncToCloud('claimed', claimed);
+        }
+
+        // --- CORE APPLICATION LOGIC ---
+        function initAdmin() { 
+            showScreen('admin-panel'); 
+            renderAdminQuestions(); 
+            renderAdminAvatars(); 
+        }
+
+        function initDisplay() { 
+            showScreen('main-display'); 
+            setupSync('display'); 
+        }
+        
+        function initMobile() {
+            showScreen('mobile-screen');
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'block';
+            if(mPlay) mPlay.style.display = 'none';
+            renderMobileAvatarGrid();
+            setupSync('mobile');
+        }
+
+        function renderMobileAvatarGrid() {
+            const grid = document.getElementById('mobile-selection-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            characterData.forEach((char, i) => {
+                const isLocked = (claimed[i] && myMobileIndex !== i) ? 'locked' : '';
+                grid.innerHTML += `
+                    <div class="avatar-card ${isLocked}" onclick="selectAvatar(${i})">
+                        <div class="locked-overlay">
+                            <div class="lock-icon">🔒</div>
+                            <div class="lock-text">LOCKED</div>
+                        </div>
+                        <img src="${char.img}" class="avatar-img" loading="lazy">
+                        <div class="avatar-name">${char.name}</div>
+                    </div>`;
+            });
+        }
+
+        function selectAvatar(idx) {
+            if(myMobileIndex !== null) claimed[myMobileIndex] = false;
+            myMobileIndex = idx;
+            claimed[idx] = true;
+            localStorage.setItem('myth_claimed', JSON.stringify(claimed));
+            syncToCloud('claimed', claimed);
+            
+            const mSetup = document.getElementById('mobile-setup');
+            const mPlay = document.getElementById('mobile-play');
+            if(mSetup) mSetup.style.display = 'none';
+            if(mPlay) mPlay.style.display = 'block';
+            
+            const mName = document.getElementById('mobile-name');
+            const mImg = document.getElementById('mobile-img');
+            const mScore = document.getElementById('mobile-score');
+            
+            if(mName) mName.innerText = characterData[idx].name;
+            if(mImg) mImg.src = characterData[idx].img;
+            if(mScore) mScore.innerText = scores[idx];
+            
+            checkCurrentState('mobile');
+        }
+
+        function setupSync(mode) {
+            // LocalStorage sync fallback (for same-browser tabs when offline)
+            window.addEventListener('storage', (e) => {
+                if(e.key === 'myth_active') checkCurrentState(mode);
+                if(e.key === 'myth_ans_reveal') showAnswer(e.newValue, mode);
+                if(e.key === 'myth_scoreboard_toggle') {
+                    if(mode === 'display') {
+                        toggleScoreboardOverlay(e.newValue === 'true');
+                    }
+                }
+                if(e.key === 'myth_claimed' && mode === 'mobile') {
+                    claimed = JSON.parse(e.newValue) || {};
+                    const mSetup = document.getElementById('mobile-setup');
+                    if(mSetup && mSetup.style.display !== 'none') {
+                        renderMobileAvatarGrid();
+                    }
+                }
+                if(e.key === 'myth_trigger') {
+                    const data = JSON.parse(e.newValue);
+                    scores[data.index] = data.score;
+                    if(mode === 'mobile' && myMobileIndex === data.index) {
+                        const mScore = document.getElementById('mobile-score');
+                        if(mScore) mScore.innerText = data.score;
+                        triggerAbility('mobile-container');
+                    }
+                }
+                if(e.key === 'myth_update_chars') {
+                    characterData = JSON.parse(localStorage.getItem('myth_characters'));
+                    if(mode === 'mobile') {
+                        const mSetup = document.getElementById('mobile-setup');
+                        if(mSetup && mSetup.style.display !== 'none') {
+                            renderMobileAvatarGrid();
+                        } else if(myMobileIndex !== null && characterData[myMobileIndex]) {
+                            const mName = document.getElementById('mobile-name');
+                            const mImg = document.getElementById('mobile-img');
+                            if(mName) mName.innerText = characterData[myMobileIndex].name;
+                            if(mImg) mImg.src = characterData[myMobileIndex].img;
+                        } else {
+                            goHome();
+                        }
+                    }
+                }
+            });
+            if(mode === 'display') checkCurrentState('display');
+        }
+
+        function saveQuestion() {
+            const textEl = document.getElementById('q-text');
+            const ansEl = document.getElementById('q-ans');
+            const timeEl = document.getElementById('q-time');
+            const editIdxEl = document.getElementById('edit-index');
+            
+            if(!textEl) return;
+            const text = textEl.value;
+            const ans = ansEl ? ansEl.value : '';
+            const time = parseInt(timeEl ? timeEl.value : 30) || 30;
+            const editIndex = parseInt(editIdxEl ? editIdxEl.value : -1);
+            
+            if(!text.trim()) return alert("Question text cannot be blank.");
+            
+            if(editIndex >= 0) {
+                questions[editIndex] = { text, ans, time };
+            } else {
+                questions.push({ text, ans, time });
+            }
+
+            localStorage.setItem('myth_q', JSON.stringify(questions));
+            syncToCloud('questions', questions);
+
+            cancelEdit(); 
+            renderAdminQuestions();
+        }
+
+        function editQuestion(idx) {
+            document.getElementById('q-text').value = questions[idx].text;
+            document.getElementById('q-ans').value = questions[idx].ans;
+            document.getElementById('q-time').value = questions[idx].time;
+            document.getElementById('edit-index').value = idx;
+            document.getElementById('form-title').innerText = "Edit Challenge";
+            document.getElementById('btn-save').innerText = "UPDATE CHALLENGE";
+        }
+
+        function cancelEdit() {
+            document.getElementById('q-text').value = '';
+            document.getElementById('q-ans').value = '';
+            document.getElementById('q-time').value = '';
+            document.getElementById('edit-index').value = '-1';
+            document.getElementById('form-title').innerText = "Forge Challenge";
+            document.getElementById('btn-save').innerText = "SAVE CHALLENGE";
+        }
+
+        function deleteQuestion(idx) {
+            questions.splice(idx, 1);
+            localStorage.setItem('myth_q', JSON.stringify(questions));
+            syncToCloud('questions', questions);
+            renderAdminQuestions();
+        }
+
+        function renderAdminQuestions() {
+            const list = document.getElementById('q-list');
+            const select = document.getElementById('q-select');
+            if(!list || !select) return;
+            
+            list.innerHTML = ''; 
+            select.innerHTML = '<option value="">-- Choose Challenge --</option>';
+            
+            questions.forEach((q, i) => {
+                list.innerHTML += `
+                    <div class="q-row">
+                        <div><strong>Q${i+1}:</strong> <span>${q.text}</span></div>
+                        <div style="min-width: 80px; text-align:right;">
+                            <button style="padding: 5px; font-size: 0.7rem;" onclick="editQuestion(${i})">Edit</button>
+                            <button style="padding: 5px; font-size: 0.7rem; border-color: red;" onclick="deleteQuestion(${i})">X</button>
+                        </div>
+                    </div>`;
+                const truncatedText = q.text.length > 30 ? q.text.substring(0,30) + "..." : q.text;
+                select.innerHTML += `<option value="${i}">Q${i+1}: ${truncatedText}</option>`;
+            });
+            
+            if (window.MathJax) { MathJax.typesetPromise([list]).catch(() => {}); }
+        }
+
+        function startQuestion() {
+            const select = document.getElementById('q-select');
+            if(!select || select.value === '') return alert("Select a challenge.");
+            const idx = select.value;
+            const q = questions[idx];
+            
+            const activePayload = { 
+                text: q.text, ans: q.ans, duration: q.time, endTime: Date.now() + (q.time * 1000) 
+            };
+
+            localStorage.setItem('myth_ans_reveal', ""); 
+            localStorage.setItem('myth_active', JSON.stringify(activePayload));
+            
+            syncToCloud('ans_reveal', "");
+            syncToCloud('active', activePayload);
+        }
+
+        function revealAnswer() {
+            const select = document.getElementById('q-select');
+            if(!select || select.value === '') return;
+            const idx = select.value;
+            const q = questions[idx];
+            if(q && q.ans) {
+                localStorage.setItem('myth_ans_reveal', q.ans);
+                syncToCloud('ans_reveal', q.ans);
+            }
+        }
+
+        function setScoreboardState(show) {
+            localStorage.setItem('myth_scoreboard_toggle', show ? 'true' : 'false');
+            syncToCloud('scoreboard_toggle', show);
+            toggleScoreboardOverlay(show);
+        }
+
+        function toggleScoreboardOverlay(show) {
+            const overlay = document.getElementById('scoreboard-overlay');
+            if(!overlay) return;
+            
+            if(show) {
+                const grid = document.getElementById('projector-scoreboard-grid');
+                if(grid) {
+                    grid.innerHTML = '';
+                    characterData.forEach((char, i) => {
+                        grid.innerHTML += `
+                            <div class="scoreboard-card">
+                                <img src="${char.img}" loading="lazy">
+                                <div class="name">${char.name}</div>
+                                <div class="score">${scores[i]}</div>
+                            </div>`;
+                    });
+                }
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function renderAdminAvatars() {
+            const list = document.getElementById('admin-avatar-list');
+            if(!list) return;
+            list.innerHTML = '';
+            characterData.forEach((char, i) => {
+                list.innerHTML += `
+                    <div class="avatar-card" style="width: 100px;">
+                        <img src="${char.img}" class="avatar-img" style="height: 80px;" loading="lazy">
+                        <div class="avatar-name" style="font-size: 0.8rem;">${char.name}</div>
+                        <h3 id="adm-sc-${i}" style="margin:5px 0; -webkit-text-fill-color: #fff;">${scores[i]}</h3>
+                        <input type="number" id="pts-${i}" placeholder="+" style="width: 90%; padding: 5px; margin: 5px auto; display:block; text-align:center;" onkeypress="if(event.key === 'Enter') award(${i})">
+                        <button onclick="award(${i})" style="width:90%; padding:5px; font-size:0.7rem; margin:auto; display:block;">ADD</button>
+                    </div>`;
+            });
+        }
+
+        function award(idx) {
+            const ptsInput = document.getElementById(`pts-${idx}`);
+            if(!ptsInput) return;
+            const val = parseInt(ptsInput.value) || 0;
+            if(val === 0) return;
+            
+            scores[idx] += val;
+            const triggerPayload = { index: idx, score: scores[idx], ts: Date.now() };
+
+            localStorage.setItem('myth_s', JSON.stringify(scores));
+            localStorage.setItem('myth_trigger', JSON.stringify(triggerPayload));
+            
+            syncToCloud('scores', scores);
+            syncToCloud('trigger', triggerPayload);
+            
+            const admSc = document.getElementById(`adm-sc-${idx}`);
+            if(admSc) admSc.innerText = scores[idx];
+            ptsInput.value = '';
+        }
+
+        function resetAll() {
+            if(confirm("Wipe all data and free the realms? This will not reset admin credentials or avatar pictures.")) { 
+                localStorage.removeItem('myth_q');
+                localStorage.removeItem('myth_s');
+                localStorage.removeItem('myth_claimed');
+                localStorage.removeItem('myth_active');
+                localStorage.removeItem('myth_ans_reveal');
+                localStorage.removeItem('myth_scoreboard_toggle');
+
+                if (isFirebaseActive && db) {
+                    db.ref('myth_quiz/questions').remove();
+                    db.ref('myth_quiz/scores').set(Array(characterData.length).fill(0));
+                    db.ref('myth_quiz/claimed').remove();
+                    db.ref('myth_quiz/active').remove();
+                    db.ref('myth_quiz/ans_reveal').remove();
+                    db.ref('myth_quiz/scoreboard_toggle').remove();
+                }
+
+                location.reload(); 
+            }
+        }
+
+        function autoScaleQuestionText() {
+            const qEl = document.getElementById('display-question');
+            if(!qEl) return;
+            
+            let currentSize = 5; 
+            qEl.style.fontSize = currentSize + 'rem';
+            
+            while (qEl.scrollHeight > qEl.clientHeight && currentSize > 1) {
+                currentSize -= 0.2;
+                qEl.style.fontSize = currentSize + 'rem';
+            }
+        }
+
+        function checkCurrentState(mode) {
+            const qData = localStorage.getItem('myth_active');
+            if(!qData) return;
+            const q = JSON.parse(qData);
+            if(q) {
+                if(timerInterval) clearInterval(timerInterval);
+                const qEl = mode === 'display' ? document.getElementById('display-question') : document.getElementById('mobile-q-text');
+                const tEl = mode === 'display' ? document.getElementById('display-timer') : document.getElementById('mobile-timer');
+                
+                const aEl = mode === 'display' ? document.getElementById('display-answer') : document.getElementById('mobile-answer');
+                if(aEl) aEl.style.display = 'none';
+                
+                if(qEl) qEl.innerHTML = q.text; 
+                
+                if (window.MathJax && qEl) { 
+                    MathJax.typesetPromise([qEl]).then(() => {
+                        if (mode === 'display') autoScaleQuestionText();
+                    }).catch(() => {}); 
+                } else {
+                    if (mode === 'display') autoScaleQuestionText();
+                }
+                
+                timerInterval = setInterval(() => {
+                    const rem = Math.round((q.endTime - Date.now()) / 1000);
+                    if(rem <= 0) { 
+                        if(tEl) tEl.innerHTML = mode === 'display' ? `<span class="time-expired-text">TIME EXPIRED</span>` : `<span style="font-size: 1.5rem;">TIME EXPIRED</span>`; 
+                        clearInterval(timerInterval); 
+                    }
+                    else {
+                        if(tEl) tEl.innerText = mode === 'display' ? rem : `Time Left: ${rem}s`;
+                    }
+                }, 1000);
+            }
+            
+            const ans = localStorage.getItem('myth_ans_reveal');
+            if(ans) showAnswer(ans, mode);
+        }
+
+        function showAnswer(ans, mode) {
+            if(!ans) return;
+            const el = mode === 'display' ? document.getElementById('display-answer') : document.getElementById('mobile-answer');
+            if(!el) return;
+            el.innerText = mode === 'display' ? ans : "ANSWER: " + ans;
+            
+            if (window.MathJax) { MathJax.typesetPromise([el]).catch(() => {}); }
+            el.style.display = 'block';
+        }
+
+        function triggerAbility(id) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.classList.remove('animate-ability');
+            void el.offsetWidth; 
+            el.classList.add('animate-ability');
+            setTimeout(() => el.classList.remove('animate-ability'), 1600);
+        }
+    </script>
+</body>
+</html>
